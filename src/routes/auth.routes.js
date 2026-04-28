@@ -2,6 +2,7 @@ import { Router } from "express";
 import passport from "passport";
 import * as controller from "../controllers/auth.controller.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
+import { protect } from "../middleware/auth.middleware.js";
 
 const router = Router();
 

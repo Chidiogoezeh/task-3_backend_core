@@ -31,7 +31,7 @@ The system implements strict **RBAC (Role-Based Access Control)** via middleware
 * **`admin`**: Has Full access. Only admins can trigger `POST /api/profiles` (External API enrichment) and `DELETE` records.
 * **Implementation**: A higher-order function `authorize('admin')` wraps protected routes, checking the `role` claim inside the decoded JWT.
 
-## 🔎 Natural Language Parsing Approach
+## Natural Language Parsing Approach
 Our system uses a **Rule-Based Deterministic Parsing Engine** to convert plain English into structured SQL filters.
 
 * **Gender**: Maps "males"/"females" to `gender`.
@@ -54,7 +54,7 @@ All profile endpoints strictly require the `X-API-Version: 1` header. Requests w
 * **API**: Limited to 60 requests/minute per authenticated user.
 * **Logging**: All requests are logged with Method, Path, Status Code, and Latency.
 
-## 🛠 Tech Stack
+## Tech Stack
 * **Runtime**: Node.js (ES6 Modules)
 * **Framework**: Express.js
 * **Database**: MySQL 8.0+
