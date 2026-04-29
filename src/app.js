@@ -16,9 +16,10 @@ app.use(express.json());
 app.use(cookieParser()); // for Web Portal HTTP-only cookies
 app.use(logger);
 
-app.use("/api", versionMiddleware); 
+app.use("/api", apiLimiter); 
 
 app.use("/auth", authRoutes);
+app.use("/api", versionMiddleware);
 app.use("/api/profiles", protect, profileRoutes);
 
 // 404 Handler
