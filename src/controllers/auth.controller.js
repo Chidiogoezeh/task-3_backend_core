@@ -29,33 +29,23 @@ export const handleRefresh = async (req, res) => {
 };
 
 export const handleCallback = async (req, res) => {
-  const { code, state, code_verifier } = req.query; 
+  const { state } = req.query;
 
-  // 1. BROWSER FLOW: GitHub just sent the user back to the Backend
-  // req.user is populated here by Passport
-  if (code && state && !code_verifier) {
-    // Redirect the browser to the CLI's local server port 4856
-    const cliLocalUrl = `http://localhost:4856/callback?code=${code}&state=${state}`;
-    return res.redirect(cliLocalUrl);
-  }
-  
-  // 2. CLI FLOW: The CLI is now POSTing (or GETing) the code + verifier to exchange for tokens
-  if (code_verifier) {
-    const storedChallenge = await redisClient.get(`pkce_${state}`);
-    if (!storedChallenge) return res.status(400).json({ status: "error", message: "PKCE session expired" });
-    
-    const isValid = authService.verifyPKCE(code_verifier, storedChallenge);
-    if (!isValid) return res.status(400).json({ status: "error", message: "PKCE verification failed" });
-    
-    await redisClient.del(`pkce_${state}`); 
+  // The tokens are generated for the user Passport just authenticated
+  const tokens = authService.generateTokens(req.user);
 
-    // We need to ensure we have a user to generate tokens for. 
-    // In a PKCE flow, the CLI often exchanges the 'code' here.
-    const tokens = authService.generateTokens(req.user);
-    return res.status(200).json({ status: "success", ...tokens });
+  // If there is a PKCE challenge in Redis for this state, it's a CLI login
+  const isCli = await redisClient.get(`pkce_${state}`);
+
+  if (isCli) {
+    // Redirect CLI users back to their local server with the data
+    const cliUrl = `http://localhost:4856/callback?code=${req.query.code}&state=${state}`;
+    return res.redirect(cliUrl);
   }
 
-  return res.status(400).json({ status: "error", message: "Invalid request" });
+  // Web Portal Flow: Set cookies and redirect to the web dashboard
+  res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true });
+  return res.redirect(`${process.env.WEB_PORTAL_URL}/dashboard.html`);
 };
 
 export const initPKCE = async (req, res) => {
