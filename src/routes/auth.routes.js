@@ -10,6 +10,7 @@ router.get("/github", authLimiter, passport.authenticate("github"));
 router.get("/github/callback", passport.authenticate("github", { session: false }), controller.handleCallback);
 router.post("/refresh", controller.handleRefresh);
 router.post("/logout", controller.logout);
+router.post("/pkce-init", controller.initPKCE);
 
 router.get("/whoami", protect, (req, res) => {
   res.json({ 

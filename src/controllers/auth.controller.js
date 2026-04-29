@@ -30,11 +30,18 @@ export const handleRefresh = async (req, res) => {
 
 export const handleCallback = async (req, res) => {
   const { code, state, code_verifier } = req.query; 
+
+  // 1. If code_verifier is missing, this is the INITIAL redirect from GitHub to your Backend
+  // We need to send the user BACK to the CLI local server
+  if (code && state && !code_verifier) {
+    // The TRD specifies port 4856 for the CLI callback
+    const cliLocalUrl = `http://localhost:4856/callback?code=${code}&state=${state}`;
+    return res.redirect(cliLocalUrl);
+  }
   
-  // 1. If code_verifier exists, it's a CLI PKCE flow
+  // 2. If code_verifier exists, the CLI is now calling this endpoint to exchange the code
   if (code_verifier) {
     const storedChallenge = await redisClient.get(`pkce_${state}`);
-    // If no challenge found in Redis, the session might have expired
     if (!storedChallenge) return res.status(400).json({ status: "error", message: "PKCE session expired" });
     
     const isValid = authService.verifyPKCE(code_verifier, storedChallenge);
@@ -42,20 +49,20 @@ export const handleCallback = async (req, res) => {
     await redisClient.del(`pkce_${state}`); 
   }
 
-  // 2. Generate tokens for the user (Passport attached user to req.user)
+  // Generate tokens (Ensure passport handled the GitHub exchange before this point)
   const tokens = authService.generateTokens(req.user);
 
-  // 3. Set Cookie for Web Portal
+  // Set Cookie for Web Portal
   res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
   
-  // 4. CLI Handling,If state contains a hint that it's from the CLI (e.g., you passed a port) or if code_verifier was present, redirect to the CLI's local listener.
-  if (code_verifier) {
-    const cliCallbackUrl = `http://localhost:4856/callback?access_token=${tokens.accessToken}&refresh_token=${tokens.refreshToken}`;
-    return res.redirect(cliCallbackUrl);
-  }
-  
-  // 5. Return tokens in JSON for CLI to capture
   return res.status(200).json({ status: "success", ...tokens });
+};
+
+export const initPKCE = async (req, res) => {
+  const { state, code_challenge } = req.body;
+  // Store the challenge in Redis for 5 minutes
+  await redisClient.setEx(`pkce_${state}`, 300, code_challenge);
+  return res.status(200).json({ status: "success" });
 };
 
 export const logout = async (req, res) => {
