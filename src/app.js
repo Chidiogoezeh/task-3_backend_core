@@ -5,6 +5,7 @@ import { globalErrorHandler } from "./middleware/error.handler.js";
 import { versionMiddleware } from "./middleware/version.middleware.js";
 import { protect } from "./middleware/auth.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
+import passport from "./config/passport.js";
 import cookieParser from "cookie-parser";
 import { logger } from "./middleware/logger.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
@@ -20,7 +21,8 @@ app.use(express.json());
 app.use(cookieParser()); // for Web Portal HTTP-only cookies
 app.use(logger);
 
-app.use("/api", apiLimiter); 
+app.use("/api", apiLimiter);
+app.use(passport.initialize());
 
 app.use("/auth", authRoutes);
 app.use("/api", versionMiddleware);

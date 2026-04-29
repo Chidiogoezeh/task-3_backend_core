@@ -31,31 +31,31 @@ export const handleRefresh = async (req, res) => {
 export const handleCallback = async (req, res) => {
   const { code, state, code_verifier } = req.query; 
 
-  // 1. If code_verifier is missing, this is the INITIAL redirect from GitHub to your Backend
-  // We need to send the user BACK to the CLI local server
+  // 1. BROWSER FLOW: GitHub just sent the user back to the Backend
+  // req.user is populated here by Passport
   if (code && state && !code_verifier) {
-    // The TRD specifies port 4856 for the CLI callback
+    // Redirect the browser to the CLI's local server port 4856
     const cliLocalUrl = `http://localhost:4856/callback?code=${code}&state=${state}`;
     return res.redirect(cliLocalUrl);
   }
   
-  // 2. If code_verifier exists, the CLI is now calling this endpoint to exchange the code
+  // 2. CLI FLOW: The CLI is now POSTing (or GETing) the code + verifier to exchange for tokens
   if (code_verifier) {
     const storedChallenge = await redisClient.get(`pkce_${state}`);
     if (!storedChallenge) return res.status(400).json({ status: "error", message: "PKCE session expired" });
     
     const isValid = authService.verifyPKCE(code_verifier, storedChallenge);
     if (!isValid) return res.status(400).json({ status: "error", message: "PKCE verification failed" });
+    
     await redisClient.del(`pkce_${state}`); 
+
+    // We need to ensure we have a user to generate tokens for. 
+    // In a PKCE flow, the CLI often exchanges the 'code' here.
+    const tokens = authService.generateTokens(req.user);
+    return res.status(200).json({ status: "success", ...tokens });
   }
 
-  // Generate tokens (Ensure passport handled the GitHub exchange before this point)
-  const tokens = authService.generateTokens(req.user);
-
-  // Set Cookie for Web Portal
-  res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
-  
-  return res.status(200).json({ status: "success", ...tokens });
+  return res.status(400).json({ status: "error", message: "Invalid request" });
 };
 
 export const initPKCE = async (req, res) => {
