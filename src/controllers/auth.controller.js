@@ -48,7 +48,13 @@ export const handleCallback = async (req, res) => {
   // 3. Set Cookie for Web Portal
   res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
   
-  // 4. Return tokens in JSON for CLI to capture
+  // 4. CLI Handling,If state contains a hint that it's from the CLI (e.g., you passed a port) or if code_verifier was present, redirect to the CLI's local listener.
+  if (code_verifier) {
+    const cliCallbackUrl = `http://localhost:4856/callback?access_token=${tokens.accessToken}&refresh_token=${tokens.refreshToken}`;
+    return res.redirect(cliCallbackUrl);
+  }
+  
+  // 5. Return tokens in JSON for CLI to capture
   return res.status(200).json({ status: "success", ...tokens });
 };
 
