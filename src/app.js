@@ -10,7 +10,11 @@ import { logger } from "./middleware/logger.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
-app.use(cors({ origin: true, credentials: true })); // origin: true allows dynamic origin matching
+app.use(cors({
+  origin: true, // Allows the CLI (which has no 'Origin' header) and Web Portal
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+}));
 app.use(express.json());
 
 app.use(cookieParser()); // for Web Portal HTTP-only cookies
