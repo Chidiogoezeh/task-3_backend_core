@@ -31,20 +31,26 @@ export const handleRefresh = async (req, res) => {
 export const handleCallback = async (req, res) => {
   const { state } = req.query;
 
-  // The tokens are generated for the user Passport just authenticated
+  // 1. Generate tokens for the user authenticated by Passport
   const tokens = authService.generateTokens(req.user);
 
-  // If there is a PKCE challenge in Redis for this state, it's a CLI login
-  const isCli = await redisClient.get(`pkce_${state}`);
+  // 2. Check if this is a CLI login by looking for a PKCE challenge in Redis
+  const code_challenge = await redisClient.get(`pkce_${state}`);
 
-  if (isCli) {
-    // Redirect CLI users back to their local server with the data
-    const cliUrl = `http://localhost:4856/callback?code=${req.query.code}&state=${state}`;
-    return res.redirect(cliUrl);
+  if (code_challenge) {
+    // CLI Flow: Send tokens as query params to the local CLI server
+    const params = new URLSearchParams({
+      status: "success",
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      state: state
+    }).toString();
+
+    return res.redirect(`http://localhost:4856/callback?${params}`);
   }
 
-  // Web Portal Flow: Set cookies and redirect to the web dashboard
-  res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true });
+  // Web Portal Flow: Set HTTP-only cookies
+  res.cookie("access_token", tokens.accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
   return res.redirect(`${process.env.WEB_PORTAL_URL}/dashboard.html`);
 };
 
